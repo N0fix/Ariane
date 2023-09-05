@@ -1,17 +1,11 @@
-
-
-
-use pdb::{FallibleIterator};
+use pdb::FallibleIterator;
 use std::io::Write;
 use std::{
     collections::HashMap,
-    fs::{OpenOptions},
-    path::{Path},
+    fs::OpenOptions,
+    path::Path,
     process::Command,
 };
-
-
-
 
 pub fn compile(toml_path: &Path, toolchain_version: &str) {
     let _filtered_env: HashMap<String, String> = std::env::vars().into_iter().collect();
@@ -24,7 +18,7 @@ pub fn compile(toml_path: &Path, toolchain_version: &str) {
 
     // todo : check that [lib] and [profile.realese] are not duplicate entries
     file.write_all(
-        String::from("\n[lib]\ncrate-type=[\"dylib\"]\n\n[profile.release]\ndebug=2\nsplit-debuginfo=\"packed\"")
+        String::from("\n[lib]\ncrate-type=[\"dylib\"]\n\n[profile.release]\ndebug=2\nsplit-debuginfo=\"packed\"\nstrip=\"none\"")
             .as_bytes(),
     );
 
@@ -35,7 +29,6 @@ pub fn compile(toml_path: &Path, toolchain_version: &str) {
     args.push("--release");
     args.push("--lib");
 
-    println!("Compiling project");
     let cmd = Command::new(String::from("cargo.exe"))
         .args(args)
         .current_dir(toml_path.parent().unwrap())

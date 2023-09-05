@@ -6,11 +6,11 @@ use std::error::Error;
 use std::fs::File;
 use std::io::{BufReader, Write};
 use std::path::{Path, PathBuf};
-mod compilation;
-mod functions_utils;
-mod info_gathering;
-mod sig;
-mod utils;
+// mod compilation;
+// mod functions_utils;
+// mod info_gathering;
+// mod sig;
+// mod utils;
 
 use ariane::functions_utils::search::{rva_to_pa, Function};
 use ariane::functions_utils::search::get_functions;
@@ -58,13 +58,18 @@ impl InputFunctions {
         }
 
         for func in &self.functions {
-            result.push(Function {
-                start_rva: func.start,
-                end_rva: func.end,
-                start_pa: rva_to_pa(&parsed_pe, func.start).unwrap(),
-                end_pa: rva_to_pa(&parsed_pe, func.end).unwrap(),
-                name: Some(func.name.to_owned()),
-            })
+            if let Some(start_pa) = rva_to_pa(&parsed_pe, func.start) {
+                if let Some(end_pa) = rva_to_pa(&parsed_pe, func.end) {
+
+                    result.push(Function {
+                        start_rva: func.start,
+                        end_rva: func.end,
+                        start_pa: start_pa,
+                        end_pa: end_pa,
+                        name: Some(func.name.to_owned()),
+                    })
+                }
+            }
         }
 
         result
@@ -113,6 +118,10 @@ fn main() -> Result<(), std::io::Error> {
         functions = get_functions(file_path.as_path(), None);
     }
 
+    for f in &functions{
+        println!("{}", f);
+    }
+
     let compiler_commit = match finc_compiler_version(&bytes) {
         Some(version) => version,
         None => {
@@ -151,6 +160,11 @@ fn main() -> Result<(), std::io::Error> {
         pdb_path.set_extension("pdb");
         let dll_bytes = std::fs::read(file_path).unwrap();
         let dll_functions = get_functions(Path::new(dll), Some(pdb_path.as_path()));
+
+        for f in &dll_functions{
+            println!("{}", f);
+        }
+        
         let syms = compare(
             bytes.as_ref(),
             &functions,

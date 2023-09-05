@@ -1,6 +1,6 @@
 use crates_io_api::SyncClient;
 use flate2::read::GzDecoder;
-use functions_utils::search::rva_to_pa;
+
 use info_gathering::krate::Krate;
 use std::fs;
 use std::io::Cursor;
@@ -41,7 +41,7 @@ pub fn handle(c: Krate, compiler_version: &str) -> Option<String> {
     fs::create_dir_all(&projet_directory);
     let target_dir = PathBuf::from(projet_directory);
     let client = SyncClient::new(
-        "Cerberus (github repo tbd)",
+        "Ariane (https://github.com/N0fix/Ariane)",
         std::time::Duration::from_millis(1_0000),
     )
     .unwrap();
@@ -53,7 +53,7 @@ pub fn handle(c: Krate, compiler_version: &str) -> Option<String> {
         .unwrap();
     let dl_url = format!("https://crates.io{}", v.dl_path);
     // println!("Download url : {:#}", dl_url);
-    let mut response = reqwest_client.get(&dl_url).send().unwrap();
+    let response = reqwest_client.get(&dl_url).send().unwrap();
     let tarball_path = target_dir.clone().join(format!("{:#}.tar.gz", c));
     // println!("Tarball path : {:?}", tarball_path);
     let mut tarball_file = fs::File::create(&tarball_path).unwrap();
@@ -63,7 +63,7 @@ pub fn handle(c: Krate, compiler_version: &str) -> Option<String> {
     std::io::copy(&mut content, &mut tarball_file).unwrap();
 
     // Extract the tarball
-    let tarball_file = fs::File::open(&tarball_path).unwrap();
+    let _tarball_file = fs::File::open(&tarball_path).unwrap();
     let mut archive = Archive::new(GzDecoder::new(fs::File::open(&tarball_path).unwrap()));
     archive.unpack(&target_dir).unwrap();
     {
@@ -94,7 +94,7 @@ pub fn handle(c: Krate, compiler_version: &str) -> Option<String> {
             .join("release")
             .join(format!("{}.dll", c.name));
 
-        let result_pdb = cargo_toml_path
+        let _result_pdb = cargo_toml_path
             .parent()
             .unwrap()
             .join("target")

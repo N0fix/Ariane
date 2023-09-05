@@ -217,8 +217,9 @@ pub fn get_functions(filepath: &Path, pdb_path: Option<&Path>) -> Vec<Function> 
         .collect()
 }
 
-type pa = u32;
+
 fn enumerate_pdb_symbols(executable_buf: &[u8], pdb_path: &Path) -> Vec<Function> {
+    println!("PDB found, enumerating symbols");
     let parsed_pe = goblin::pe::PE::parse(executable_buf).unwrap();
     let mut section_map = HashMap::<u16, SectionTable>::new();
     for (i, section) in parsed_pe.sections.iter().enumerate() {
@@ -237,8 +238,11 @@ fn enumerate_pdb_symbols(executable_buf: &[u8], pdb_path: &Path) -> Vec<Function
     let mut result_functions = vec![];
 
     while let Some(symbol) = symbols.next().unwrap() {
+        // println!("{:?}", symbol);
         match symbol.parse().unwrap() {
+            
             pdb::SymbolData::Public(func) => {
+                // println!("{:?}", func);
                 if section_map.contains_key(&func.offset.section) {
                     let pa =
                         func.offset.offset + section_map[&func.offset.section].pointer_to_raw_data;
@@ -252,9 +256,65 @@ fn enumerate_pdb_symbols(executable_buf: &[u8], pdb_path: &Path) -> Vec<Function
                     );
                 }
             }
+            // pdb::SymbolData::Procedure(func) => {
+            //     println!("{:?}", func);
+            //     if section_map.contains_key(&func.offset.section) {
+            //         let pa =
+            //             func.offset.offset + section_map[&func.offset.section].pointer_to_raw_data;
+            //         let va = func.offset.offset + section_map[&func.offset.section].virtual_address;
+            //         map.insert(
+            //             pa,
+            //             (
+            //                 va,
+            //                 String::from_utf8(func.name.as_bytes().to_vec()).unwrap(),
+            //             ),
+            //         );
+            //     }
+            // }
             _ => {}
         }
     }
+
+    // println!("Module private symbols:");
+    let dbi = pdb.debug_information().unwrap();
+    let mut modules = dbi.modules().unwrap();
+    while let Some(module) = modules.next().unwrap() {
+        // println!("Module: {}", module.object_file_name());
+        let info = match pdb.module_info(&module).unwrap() {
+            Some(info) => info,
+            None => {
+                // println!("  no module info");
+                continue;
+            }
+        };
+        let mut s = info.symbols().unwrap();
+        while let Some(symbol) = s.next().unwrap() {
+            // println!("{:?}", symbol);
+            if let Ok(s) = symbol.parse() {
+
+                match s {
+                    pdb::SymbolData::Procedure(func) => {
+                        // println!("{:x} {:?}", func.offset.offset, func.name);
+                        if section_map.contains_key(&func.offset.section) {
+                            let pa =
+                                func.offset.offset + section_map[&func.offset.section].pointer_to_raw_data;
+                            let va = func.offset.offset + section_map[&func.offset.section].virtual_address;
+                            map.insert(
+                                pa,
+                                (
+                                    va,
+                                    String::from_utf8(func.name.as_bytes().to_vec()).unwrap(),
+                                ),
+                            );
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            }
+        // walk_symbols(info.symbols())?;
+    }
+
 
     let mut sorted_funcs: Vec<(u32, (u32, String))> = vec![];
     for func in map.keys().sorted() {

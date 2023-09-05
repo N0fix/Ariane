@@ -1,5 +1,7 @@
+## Usage
 
-## Input JSON structure
+You first need to provide a list of functions from your target. Scripts to extract them from IDA to the correct format are available under `tools/IDA_extract_functions`.
+This list of functions should be a JSON file that has this shape :
 
 ```json
 {
@@ -14,64 +16,10 @@
 }
 ```
 
-## IDA script
+Then, pass it as an argument along with your target and an output file.
 
-
-### IDA python
-
-```python
-import idc
-from idautils import *
-from idaapi import *
-import json
-
-filename = 'idaoutput.txt'
-results = {'symbols': []}
-
-for f in Functions(0):
-    results['symbols'].append(
-        {'name': get_func_name(f), 'start': f - get_imagebase(), 'end': idc.find_func_end(f) - get_imagebase() }
-    )
-
-print(json.dumps(results, indent=4))
-with open(filename, 'w+', encoding='utf-8') as f:
-    f.write(json.dumps(results))
-
-print(f'JSON dumped to: {filename}')
+```
+cerberust.exe -i functions_list.json no_symbols_target.exe resolved_symbols.json
 ```
 
-### IDC (IDA free)
-```
-extern g_idcutil_logfile;
-static LogInit()
-{
-  g_idcutil_logfile = fopen("idaout.txt", "w+");
-  if (g_idcutil_logfile == 0)
-    return 0;
-  return 1;
-}
-
-static main()
-{
-    LogInit();
-    fprintf(g_idcutil_logfile, "%s", "{\"functions\":[");
-    msg("%s", "{\"functions\":[");
-    auto ea, x;  for ( ea=NextFunction(0); ea != BADADDR; ea=NextFunction(ea) )
-    {
-        fprintf(g_idcutil_logfile, "{\"name\": \"%s\" ,  \"start\" : %ld, \"end\": %ld}\n", GetFunctionName(ea), ea - get_imagebase(), find_func_end(ea) - get_imagebase());
-        msg("{\"name\": \"%s\" ,  \"start\" : %ld, \"end\": %ld}", GetFunctionName(ea), ea - get_imagebase(), find_func_end(ea) - get_imagebase());
-        if (NextFunction(ea) != BADADDR) {
-            msg("%s", ",\n");
-            fprintf(g_idcutil_logfile, "%s", ",\n");
-        }
-    }
-
-    fprintf(g_idcutil_logfile, "%s", "]}");
-    msg("%s", "]}\n");
-    
-    msg("Saved to idaout.txt");
-    fclose(g_idcutil_logfile);
-}
-```
-
-This should output a valid JSON file named "idaout.txt" next to the file your oppened in IDA.
+The output file will be a JSON file containing resolved symbols aswell as their PA and RVA. A script can be found under `tools/output_to_idc.py` to generate an IDA IDC script that will rename all resolved symbols to your analysis.

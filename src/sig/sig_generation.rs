@@ -97,7 +97,7 @@ pub fn hash_functions(file_bytes: &[u8], functions: &Vec<Function>) -> Vec<Fuzzy
         // end_pa MUST be next exported func if it has one
         let data = hash_single_func(
             &file_bytes[f.start_pa as usize..f.end_pa as usize],
-            false,
+            false //f.name.clone().unwrap() == String::from("aes::ni::aes128::expand_key") || f.start_pa == 0x1FC0,
         );
         let hash = FuzzyHash::new(&data);
 

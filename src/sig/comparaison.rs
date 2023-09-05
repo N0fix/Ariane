@@ -1,12 +1,8 @@
-
-
-
 use serde::{Serialize, Deserialize};
 
 use crate::{functions_utils::search::Function, sig::sig_generation::hash_functions};
 
 use super::sig_generation::FuzzyFunc;
-
 
 #[derive(Serialize, Deserialize)]
 pub struct Symbol {
@@ -28,7 +24,7 @@ fn compare_sigs(from: &Vec<FuzzyFunc>, with: &Vec<FuzzyFunc>) -> Vec<Symbol> {
                 if let Some(val) = f_dll.hash.hash.compare_to(&f.hash.hash) {
                     if val > 25 {
                         println!(
-                            "PA {:08x}  - val {} - {} ({} {})",
+                            "PA {:08x} - val {} - {} ({} {})",
                             f.pa, val, function_name, f.hash.hash, f_dll.hash.hash
                         );
                         symbols.push(Symbol {
@@ -45,20 +41,6 @@ fn compare_sigs(from: &Vec<FuzzyFunc>, with: &Vec<FuzzyFunc>) -> Vec<Symbol> {
                 // }
             }
         }
-        // let hash = FuzzyHash::new(&dll_bytes[f.start_pa as usize..f.end_pa as usize]);
-        // for (addr, (digest, _)) in map.iter() {
-        //     if let Ok(val) = FuzzyHash::compare(digest.to_string(), hash.to_string()) {
-        //         let fn_name = find_fn_name(f.start_pa, dll_bytes);
-        //         if let Some(name) = fn_name {
-        //             if val > 20 {
-        //                 println!(
-        //                     "val {}, {} offset exe {:x} offset dll {:x} ({} {})",
-        //                     val, name, addr, f.start_pa, digest, hash
-        //                 );
-        //             }
-        //         }
-        //     }
-        // }
     }
 
     symbols
@@ -75,13 +57,12 @@ pub fn compare(
         functions.len(),
         dll_functions.len()
     );
-    println!("Generating hashes");
-    println!("Gen dll");
+    println!("Hash lib functions");
     let dll_hash_fn = hash_functions(dll_bytes, dll_functions);
-    println!("Gen target");
+    println!("Hash target functions");
     let normal_hash_fn = hash_functions(file_bytes, functions);
 
-    println!("End hashes generation");
+    println!("Compare");
     let sym = compare_sigs(&normal_hash_fn, &dll_hash_fn);
     return sym;
 }

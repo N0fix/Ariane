@@ -1,5 +1,5 @@
 use regex::bytes::Regex;
-use std::io::{Cursor, Write};
+use std::io::{Cursor};
 
 /// If not found, considers that hash corresponds to the latest rustc (no tag available yet). Returns None in this case.
 pub fn find_tag_from_hash(hash: &str) -> Option<String> {
@@ -14,8 +14,8 @@ pub fn find_tag_from_hash(hash: &str) -> Option<String> {
     let client = reqwest::blocking::Client::new();
     // According to https://github.com/s0md3v/Zen :
     // "Github allows 60 unauthenticated requests per hour". This should be way enough for a single user, but might reach a limit in CTF.
-    let mut response = client.get(&url).send().unwrap();
-    let mut content = Cursor::new(response.bytes().unwrap());
+    let response = client.get(&url).send().unwrap();
+    let content = Cursor::new(response.bytes().unwrap());
     let ca = tag_regex.captures_iter(content.get_ref());
     // let mut latest_tag = None;
     for c in ca {

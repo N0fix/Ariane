@@ -1,22 +1,20 @@
-use crates_io_api::SyncClient;
-use flate2::read::GzDecoder;
-use itertools::Itertools;
-use pdb::{FallibleIterator, PdbInternalSectionOffset};
+
+
+
+use pdb::{FallibleIterator};
 use std::io::Write;
 use std::{
     collections::HashMap,
-    ffi::OsStr,
-    fs::{self, OpenOptions},
-    io::Cursor,
-    path::{Path, PathBuf},
+    fs::{OpenOptions},
+    path::{Path},
     process::Command,
 };
-use tar::Archive;
 
-use crate::info_gathering::krate::Krate;
+
+
 
 pub fn compile(toml_path: &Path, toolchain_version: &str) {
-    let mut filtered_env: HashMap<String, String> = std::env::vars().into_iter().collect();
+    let _filtered_env: HashMap<String, String> = std::env::vars().into_iter().collect();
 
     let mut file = OpenOptions::new()
         .write(true)
@@ -38,7 +36,7 @@ pub fn compile(toml_path: &Path, toolchain_version: &str) {
     args.push("--lib");
 
     println!("Compiling project");
-    let mut cmd = Command::new(String::from("cargo.exe"))
+    let cmd = Command::new(String::from("cargo.exe"))
         .args(args)
         .current_dir(toml_path.parent().unwrap())
         .output()

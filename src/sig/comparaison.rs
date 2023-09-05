@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 
-use fuzzyhash::FuzzyHash;
+
+
 use serde::{Serialize, Deserialize};
 
 use crate::{functions_utils::search::Function, sig::sig_generation::hash_functions};

@@ -20,7 +20,7 @@ pub struct FuzzyFunc {
 
 impl Display for FuzzyFunc {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(name) = &self.name {
+        if let Some(_name) = &self.name {
             write!(f, "{:08x} {:?}", self.pa, self.name)?;
         }
 

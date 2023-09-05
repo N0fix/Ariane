@@ -150,7 +150,7 @@ fn main() -> Result<(), std::io::Error> {
         let mut pdb_path: PathBuf = PathBuf::from(dll);
         pdb_path.set_extension("pdb");
         let dll_bytes = std::fs::read(file_path).unwrap();
-        let mut dll_functions = get_functions(Path::new(dll), Some(pdb_path.as_path()));
+        let dll_functions = get_functions(Path::new(dll), Some(pdb_path.as_path()));
         let syms = compare(
             bytes.as_ref(),
             &functions,

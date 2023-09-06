@@ -8,6 +8,14 @@
 
 **It is heavely inspired by [Cerberus](https://github.com/h311d1n3r/Cerberus/tree/main) and implement the same principles, but for PE files.**
 
+## Installation
+
+```
+git clone https://github.com/N0fix/Ariane
+cd Ariane
+cargo install --path .
+```
+
 ## Usage
 
 First, you need to provide a list of functions from your target. Scripts to extract them from IDA and convert them to the correct format are available under `tools/IDA_extract_functions`.

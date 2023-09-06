@@ -1,3 +1,4 @@
+[![Rust](https://github.com/N0fix/Ariane/actions/workflows/rust.yml/badge.svg)](https://github.com/N0fix/Ariane/actions/workflows/rust.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 

@@ -37,3 +37,16 @@ pub fn finc_compiler_version(content: &Vec<u8>) -> Option<String> {
 
     None
 }
+
+pub fn get_latest_rust_version() -> String {
+    let re = Regex::new(r"Version (?<version>[0-9\.]+)").unwrap();
+    let url = "https://raw.githubusercontent.com/rust-lang/rust/master/RELEASES.md";
+    let client = reqwest::blocking::Client::new();
+    let response = client.get(url).send().unwrap();
+    let content = Cursor::new(response.bytes().unwrap());
+    let mut ca = re.captures_iter(content.get_ref());
+    let version = ca.next().unwrap();
+    // let mut latest_tag = None;
+    
+    String::from_utf8(version.name("version").unwrap().as_bytes().to_vec()).unwrap()
+}

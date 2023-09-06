@@ -1,3 +1,4 @@
+use ariane::sig::sig_generation::hash_functions;
 use clap::Parser;
 use goblin::pe::section_table::SectionTable;
 use serde::{Deserialize, Serialize};
@@ -15,7 +16,7 @@ use std::path::{Path, PathBuf};
 use ariane::functions_utils::search::{rva_to_pa, Function};
 use ariane::functions_utils::search::get_functions;
 use ariane::sig::comparaison::compare;
-use ariane::info_gathering::compiler::{finc_compiler_version, find_tag_from_hash};
+use ariane::info_gathering::compiler::{finc_compiler_version, find_tag_from_hash, get_latest_rust_version};
 use ariane::info_gathering::krate::{Krate, find_deps};
 use ariane::sig::comparaison::Symbol;
 use ariane::{install_toolchain, handle};
@@ -118,10 +119,6 @@ fn main() -> Result<(), std::io::Error> {
         functions = get_functions(file_path.as_path(), None);
     }
 
-    for f in &functions{
-        println!("{}", f);
-    }
-
     let compiler_commit = match finc_compiler_version(&bytes) {
         Some(version) => version,
         None => {
@@ -139,7 +136,7 @@ fn main() -> Result<(), std::io::Error> {
             tag.to_string()
         }
         // git ls-remote https://github.com/rust-lang/rust | sort | grep tag | grep '/1.7'
-        None => "1.72.0".to_string(),
+        None => get_latest_rust_version(),
     };
     install_toolchain(compiler_tag.as_str());
 
@@ -152,6 +149,11 @@ fn main() -> Result<(), std::io::Error> {
             compiled_dll_paths.push(path);
         };
     }
+
+
+    println!("Hash target functions");
+    let hashed_functions_target = hash_functions(&bytes, &functions);
+
     let mut result: Vec<RecoveredSymbols> = vec![];
     for dll in &compiled_dll_paths {
         println!("Analysing {}", dll);
@@ -161,15 +163,11 @@ fn main() -> Result<(), std::io::Error> {
         let dll_bytes = std::fs::read(file_path).unwrap();
         let dll_functions = get_functions(Path::new(dll), Some(pdb_path.as_path()));
 
-        for f in &dll_functions{
-            println!("{}", f);
-        }
-        
+        println!("Hash lib functions");
+        let hashed_functions_dll = hash_functions(&dll_bytes, &dll_functions);
         let syms = compare(
-            bytes.as_ref(),
-            &functions,
-            dll_bytes.as_ref(),
-            &dll_functions,
+            &hashed_functions_target,
+            &hashed_functions_dll
         );
         result.push(RecoveredSymbols {
             dll_name: dll.clone(),

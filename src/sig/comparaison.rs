@@ -1,3 +1,4 @@
+use fuzzyhash::FuzzyHash;
 use serde::{Serialize, Deserialize};
 
 use crate::{functions_utils::search::Function, sig::sig_generation::hash_functions};
@@ -47,22 +48,8 @@ fn compare_sigs(from: &Vec<FuzzyFunc>, with: &Vec<FuzzyFunc>) -> Vec<Symbol> {
 }
 
 pub fn compare(
-    file_bytes: &[u8],
-    functions: &Vec<Function>,
-    dll_bytes: &[u8],
-    dll_functions: &Vec<Function>,
+    from: &Vec<FuzzyFunc>,
+    with: &Vec<FuzzyFunc>
 ) -> Vec<Symbol> {
-    println!(
-        "Comparing {} funcs to {}",
-        functions.len(),
-        dll_functions.len()
-    );
-    println!("Hash lib functions");
-    let dll_hash_fn = hash_functions(dll_bytes, dll_functions);
-    println!("Hash target functions");
-    let normal_hash_fn = hash_functions(file_bytes, functions);
-
-    println!("Compare");
-    let sym = compare_sigs(&normal_hash_fn, &dll_hash_fn);
-    return sym;
+    compare_sigs(&from, &with)
 }

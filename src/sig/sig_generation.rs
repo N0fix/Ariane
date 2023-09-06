@@ -21,7 +21,9 @@ pub struct FuzzyFunc {
 impl Display for FuzzyFunc {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(_name) = &self.name {
-            write!(f, "{:08x} {:?}", self.pa, self.name)?;
+            write!(f, "{:08x} {:#} {:?}", self.pa, self.hash.hash, self.name)?;
+        } else {
+            write!(f, "{:08x} {:#} ", self.pa, self.hash.hash)?;
         }
 
         Ok(())
@@ -97,15 +99,19 @@ pub fn hash_functions(file_bytes: &[u8], functions: &Vec<Function>) -> Vec<Fuzzy
         // end_pa MUST be next exported func if it has one
         let data = hash_single_func(
             &file_bytes[f.start_pa as usize..f.end_pa as usize],
-            false //f.name.clone().unwrap() == String::from("aes::ni::aes128::expand_key") || f.start_pa == 0x1FC0,
+            false
         );
         let hash = FuzzyHash::new(&data);
 
+        let fn_name = match f.name.clone() {
+            Some(name) => Some(name),
+            None => find_fn_name(f.start_pa, file_bytes),
+        };
         result.push(FuzzyFunc {
             pa: f.start_pa,
             rva: f.start_rva,
             hash: Hash { hash: hash },
-            name: find_fn_name(f.start_pa, file_bytes),
+            name: fn_name,
         });
     }
 

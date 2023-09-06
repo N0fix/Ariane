@@ -1,4 +1,4 @@
-[![Rust](https://github.com/N0fix/Ariane/actions/workflows/rust.yml/badge.svg?branch=master)](https://github.com/N0fix/Ariane/actions/workflows/rust.yml)
+[![Build](https://github.com/N0fix/Ariane/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/N0fix/Ariane/actions/workflows/build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 

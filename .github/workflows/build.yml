@@ -22,11 +22,14 @@ jobs:
     # - name: artifacts
       # run: cp .\target\debug\ariane.exe ariane.exe
 
-    - name: Release
-      uses: softprops/action-gh-release@v1
+    - name: artifacts
+      uses: actions/upload-artifact@v3
       # if: startsWith(github.ref, 'refs/tags/')
       with:
-        files: target\release\ariane.exe
-        tag: latest
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          exe: ariane.exe
+          path: .\target\debug\ariane.exe
+      # with:
+      #   files: target\release\ariane.exe
+      #   tag: latest
+      # env:
+      #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

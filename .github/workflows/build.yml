@@ -20,7 +20,7 @@ jobs:
       run: cargo build --verbose
     
     - name: artifacts
-      run: cp .\build\debug\ariane.exe ariane.exe
+      run: cp .\target\debug\ariane.exe ariane.exe
 
     - name: Release
       uses: softprops/action-gh-release@v1

@@ -17,10 +17,10 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Build
-      run: cargo build --verbose --release
+      run: cargo build --verbose
     
     - name: artifacts
-      run: cp ariane.exe .\build\release\ariane.exe
+      run: cp .\build\debug\ariane.exe ariane.exe
 
     - name: Release
       uses: softprops/action-gh-release@v1

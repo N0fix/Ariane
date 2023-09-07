@@ -4,13 +4,16 @@
 
 Ariane is a tool that attempts to identify functions in Rust PE executables when no debug information is available.
 
+![](./fn_id.jpg)
+
+*Before/After symbol recovery*
+
 ## Warning
 
 **This tool is currently in an experimental phase and should not be considered as complete and accurate.**
 
 **It is inspired by [Cerberus](https://github.com/h311d1n3r/Cerberus/tree/main) and implement similar principles, but for PE files.**
 
-![](./fn_id.jpg)
 
 ## Installation
 
@@ -19,6 +22,13 @@ git clone https://github.com/N0fix/Ariane
 cd Ariane
 cargo install --path .
 ```
+
+## External dependencies
+
+Please make sure you have to following dependencies installed : 
+
+- [rustup](https://rustup.rs/)
+- [cargo](https://www.rust-lang.org/tools/install) (comes with rust default installation)
 
 ## Usage
 
@@ -56,6 +66,10 @@ The output file will be in JSON format and will contain resolved symbols, along 
 - Small functions might be identified as multiple different functions, and you will need to choose the most suitable one from the JSON output.
 
 ## FAQ
+
+### Can it run on linux ?
+
+No.
 
 ### How does this work ?
 

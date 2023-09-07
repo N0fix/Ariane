@@ -19,12 +19,12 @@ jobs:
     - name: Build
       run: cargo build --verbose
     
-    - name: artifacts
-      run: cp .\target\debug\ariane.exe ariane.exe
+    # - name: artifacts
+      # run: cp .\target\debug\ariane.exe ariane.exe
 
     - name: Release
       uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/')
+      # if: startsWith(github.ref, 'refs/tags/')
       with:
         files: target\release\ariane.exe
       env:

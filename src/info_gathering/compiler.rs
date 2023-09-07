@@ -1,5 +1,5 @@
 use regex::bytes::Regex;
-use std::io::{Cursor};
+use std::io::Cursor;
 
 /// If not found, considers that hash corresponds to the latest rustc (no tag available yet). Returns None in this case.
 pub fn find_tag_from_hash(hash: &str) -> Option<String> {
@@ -47,6 +47,6 @@ pub fn get_latest_rust_version() -> String {
     let mut ca = re.captures_iter(content.get_ref());
     let version = ca.next().unwrap();
     // let mut latest_tag = None;
-    
+
     String::from_utf8(version.name("version").unwrap().as_bytes().to_vec()).unwrap()
 }

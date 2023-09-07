@@ -156,38 +156,38 @@ fn get_exception_data_functions(file: &[u8]) -> Vec<Function> {
     functions
 }
 
-fn guess_smda_functions(filepath: &Path, file_content: &[u8]) -> Vec<Function> {
-    let mut fns = vec![];
-    let parsed_pe = goblin::pe::PE::parse(file_content).unwrap();
-    let file =
-        smda::Disassembler::disassemble_file(filepath.to_str().unwrap(), true, true).unwrap();
-    for (_, func) in file.get_functions().unwrap().iter() {
-        let end = func
-            .get_instructions()
-            .unwrap()
-            .iter()
-            .map(|x| x.offset)
-            .max()
-            .unwrap();
+// fn guess_smda_functions(filepath: &Path, file_content: &[u8]) -> Vec<Function> {
+//     let mut fns = vec![];
+//     let parsed_pe = goblin::pe::PE::parse(file_content).unwrap();
+//     let file =
+//         smda::Disassembler::disassemble_file(filepath.to_str().unwrap(), true, true).unwrap();
+//     for (_, func) in file.get_functions().unwrap().iter() {
+//         let end = func
+//             .get_instructions()
+//             .unwrap()
+//             .iter()
+//             .map(|x| x.offset)
+//             .max()
+//             .unwrap();
 
-        if end > func.offset && end - func.offset > VALID_MIN_BYTES_FUNCTION_TRESHOLD.into() {
-            if let Some(start_pa) = rva_to_pa(&parsed_pe, (func.offset - file.base_addr) as u32) {
-                if let Some(end_pa) = rva_to_pa(&parsed_pe, end as u32) {
-                    fns.push(Function {
-                        start_rva: (func.offset - file.base_addr) as u32,
-                        end_rva: (end - file.base_addr) as u32,
-                        start_pa: start_pa,
-                        end_pa: end_pa,
-                        name: None,
-                    })
-                }
-            }
-        }
-    }
+//         if end > func.offset && end - func.offset > VALID_MIN_BYTES_FUNCTION_TRESHOLD.into() {
+//             if let Some(start_pa) = rva_to_pa(&parsed_pe, (func.offset - file.base_addr) as u32) {
+//                 if let Some(end_pa) = rva_to_pa(&parsed_pe, end as u32) {
+//                     fns.push(Function {
+//                         start_rva: (func.offset - file.base_addr) as u32,
+//                         end_rva: (end - file.base_addr) as u32,
+//                         start_pa: start_pa,
+//                         end_pa: end_pa,
+//                         name: None,
+//                     })
+//                 }
+//             }
+//         }
+//     }
 
-    fns.sort();
-    fns
-}
+//     fns.sort();
+//     fns
+// }
 
 pub fn get_functions(filepath: &Path, pdb_path: Option<&Path>) -> Vec<Function> {
     let mut funcs = vec![];
@@ -206,7 +206,7 @@ pub fn get_functions(filepath: &Path, pdb_path: Option<&Path>) -> Vec<Function> 
         }
     }
 
-    funcs.append(&mut guess_smda_functions(filepath, &bytes));
+    // funcs.append(&mut guess_smda_functions(filepath, &bytes));
     funcs.append(&mut get_exception_data_functions(&bytes));
     funcs.append(&mut get_exported_functions_goblin(&bytes));
 
@@ -216,7 +216,6 @@ pub fn get_functions(filepath: &Path, pdb_path: Option<&Path>) -> Vec<Function> 
         .filter(|f| f.end_pa - f.start_pa > VALID_MIN_BYTES_FUNCTION_TRESHOLD)
         .collect()
 }
-
 
 fn enumerate_pdb_symbols(executable_buf: &[u8], pdb_path: &Path) -> Vec<Function> {
     println!("PDB found, enumerating symbols");
@@ -240,7 +239,6 @@ fn enumerate_pdb_symbols(executable_buf: &[u8], pdb_path: &Path) -> Vec<Function
     while let Some(symbol) = symbols.next().unwrap() {
         // println!("{:?}", symbol);
         match symbol.parse().unwrap() {
-            
             pdb::SymbolData::Public(func) => {
                 // println!("{:?}", func);
                 if section_map.contains_key(&func.offset.section) {
@@ -291,14 +289,14 @@ fn enumerate_pdb_symbols(executable_buf: &[u8], pdb_path: &Path) -> Vec<Function
         while let Some(symbol) = s.next().unwrap() {
             // println!("{:?}", symbol);
             if let Ok(s) = symbol.parse() {
-
                 match s {
                     pdb::SymbolData::Procedure(func) => {
                         // println!("{:x} {:?}", func.offset.offset, func.name);
                         if section_map.contains_key(&func.offset.section) {
-                            let pa =
-                                func.offset.offset + section_map[&func.offset.section].pointer_to_raw_data;
-                            let va = func.offset.offset + section_map[&func.offset.section].virtual_address;
+                            let pa = func.offset.offset
+                                + section_map[&func.offset.section].pointer_to_raw_data;
+                            let va = func.offset.offset
+                                + section_map[&func.offset.section].virtual_address;
                             map.insert(
                                 pa,
                                 (
@@ -311,10 +309,9 @@ fn enumerate_pdb_symbols(executable_buf: &[u8], pdb_path: &Path) -> Vec<Function
                     _ => {}
                 }
             }
-            }
+        }
         // walk_symbols(info.symbols())?;
     }
-
 
     let mut sorted_funcs: Vec<(u32, (u32, String))> = vec![];
     for func in map.keys().sorted() {

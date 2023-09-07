@@ -6,6 +6,7 @@ use std::{collections::HashMap, fmt::Display};
 pub struct Krate {
     pub name: String,
     pub version: Version,
+    pub features: Vec<String>
 }
 
 impl Display for Krate {
@@ -26,8 +27,11 @@ impl Krate {
 pub fn find_deps(content: &Vec<u8>) -> Vec<Krate> {
     let mut map = HashMap::<String, Version>::new();
     let re = Regex::new(r"cargo.registry.src.[^\\\/]+.(?<cratename>[^\\\/]+)").unwrap();
+    let re_sources = Regex::new(r"cargo.registry.src.[^\\\/]+.([^\\\/]+[^\\\/])+.([^\\\/]+)+.(?<sources>[^\\\/].*).rs").unwrap();
     // let x = re.captures_iter(content.as_ref());//.collect();
     let ca = re.captures_iter(content.as_ref());
+    let ca_sources = re_sources.captures_iter(content.as_ref());
+    let mut features = vec![];
 
     for c in ca {
         // println!("{:?}",c);
@@ -47,11 +51,24 @@ pub fn find_deps(content: &Vec<u8>) -> Vec<Krate> {
             map.insert(name.to_string(), version);
         }
     }
+    for c in ca_sources {
+        if let Some(sources) = c.name("sources") {
+            let sources = String::from_utf8(sources.as_bytes().to_vec()).unwrap();
+            if sources.contains("\\") {
+                for s in sources.split("\\") {
+                    features.push(s.to_string());
+                }
+            } else {
+                features.push(sources);
+            }
+        }
+    }
 
     map.iter()
         .map(|(name, version)| Krate {
             name: name.to_owned(),
             version: version.to_owned(),
+            features: features.clone()
         })
         .collect()
 }

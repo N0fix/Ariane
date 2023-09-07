@@ -1,5 +1,6 @@
-use ariane::sig::sig_generation::hash_functions;
+use ariane::sig::sig_generation::{hash_functions, FuzzyFunc};
 use clap::Parser;
+use fuzzyhash::FuzzyHash;
 use goblin::pe::section_table::SectionTable;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -13,17 +14,19 @@ use std::path::{Path, PathBuf};
 // mod sig;
 // mod utils;
 
-use ariane::functions_utils::search::{rva_to_pa, Function};
 use ariane::functions_utils::search::get_functions;
+use ariane::functions_utils::search::{rva_to_pa, Function};
+use ariane::info_gathering::compiler::{
+    finc_compiler_version, find_tag_from_hash, get_latest_rust_version,
+};
+use ariane::info_gathering::krate::{find_deps, Krate};
 use ariane::sig::comparaison::compare;
-use ariane::info_gathering::compiler::{finc_compiler_version, find_tag_from_hash, get_latest_rust_version};
-use ariane::info_gathering::krate::{Krate, find_deps};
 use ariane::sig::comparaison::Symbol;
-use ariane::{install_toolchain, handle};
+use ariane::{handle, install_toolchain};
 
 #[derive(Serialize, Deserialize, Default)]
 struct RecoveredSymbols {
-    dll_name: String,
+    // dll_name: String,
     symbols: Vec<Symbol>,
 }
 
@@ -61,7 +64,6 @@ impl InputFunctions {
         for func in &self.functions {
             if let Some(start_pa) = rva_to_pa(&parsed_pe, func.start) {
                 if let Some(end_pa) = rva_to_pa(&parsed_pe, func.end) {
-
                     result.push(Function {
                         start_rva: func.start,
                         end_rva: func.end,
@@ -119,6 +121,8 @@ fn main() -> Result<(), std::io::Error> {
         functions = get_functions(file_path.as_path(), None);
     }
 
+    println!("{} functions", functions.len());
+
     let compiler_commit = match finc_compiler_version(&bytes) {
         Some(version) => version,
         None => {
@@ -143,6 +147,7 @@ fn main() -> Result<(), std::io::Error> {
     println!("Finding deps");
     let mut compiled_dll_paths = vec![];
     let found_crates: Vec<Krate> = find_deps(&bytes);
+    
     for cr in found_crates {
         println!("{:#}", cr);
         if let Some(path) = handle(cr, compiler_tag.as_str()) {
@@ -150,30 +155,45 @@ fn main() -> Result<(), std::io::Error> {
         };
     }
 
-
     println!("Hash target functions");
     let hashed_functions_target = hash_functions(&bytes, &functions);
 
     let mut result: Vec<RecoveredSymbols> = vec![];
+    let mut hash_dll_functions = HashMap::<String, (String, String)>::new();
     for dll in &compiled_dll_paths {
         println!("Analysing {}", dll);
         let file_path: PathBuf = PathBuf::from(dll);
+        let file_path_string = file_path.clone().to_str().unwrap().to_string();
         let mut pdb_path: PathBuf = PathBuf::from(dll);
         pdb_path.set_extension("pdb");
         let dll_bytes = std::fs::read(file_path).unwrap();
         let dll_functions = get_functions(Path::new(dll), Some(pdb_path.as_path()));
 
         println!("Hash lib functions");
-        let hashed_functions_dll = hash_functions(&dll_bytes, &dll_functions);
-        let syms = compare(
-            &hashed_functions_target,
-            &hashed_functions_dll
-        );
-        result.push(RecoveredSymbols {
-            dll_name: dll.clone(),
-            symbols: syms,
-        });
+        let dll_hashes = hash_functions(&dll_bytes, &dll_functions);
+
+        for hash in &dll_hashes {
+            if let Some(fn_name) = hash.name.as_ref() {
+                if !hash_dll_functions.contains_key(fn_name) {
+                    hash_dll_functions.insert(
+                        fn_name.to_string(),
+                        (
+                            file_path_string.clone(),
+                            hash.hash.hash.to_string(),
+                        ),
+                    );
+                }
+            }
+        }
     }
+
+    let syms = compare(&hashed_functions_target, &hash_dll_functions);
+
+    result.push(RecoveredSymbols {
+        // dll_name: dll.clone(),
+        symbols: syms,
+    });
+
     let mut f = std::fs::OpenOptions::new()
         .create(true)
         .write(true)

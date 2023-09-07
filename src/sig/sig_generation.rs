@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use fuzzyhash::FuzzyHash;
-use iced_x86::{Decoder, MasmFormatter, DecoderOptions, Instruction, Mnemonic, OpKind, Formatter};
+use iced_x86::{Decoder, DecoderOptions, Formatter, Instruction, MasmFormatter, Mnemonic, OpKind};
 
 use crate::{functions_utils::search::Function, utils::export::find_fn_name};
 
@@ -29,6 +29,8 @@ impl Display for FuzzyFunc {
         Ok(())
     }
 }
+
+const MIN_FUNC_SZ: u8 = 20;
 
 /// Uses ssdeep to hash the function.
 /// Given bytes gets disassembled to avoid anything that has a relative offset to get hashed, e.g:
@@ -96,11 +98,17 @@ pub fn hash_functions(file_bytes: &[u8], functions: &Vec<Function>) -> Vec<Fuzzy
     let mut result = vec![];
 
     for f in functions {
+        if f.end_pa < f.start_pa || f.end_pa - f.start_pa < MIN_FUNC_SZ.into() {
+            continue;
+        }
+
         // end_pa MUST be next exported func if it has one
-        let data = hash_single_func(
-            &file_bytes[f.start_pa as usize..f.end_pa as usize],
-            false
-        );
+        let data = hash_single_func(&file_bytes[f.start_pa as usize..f.end_pa as usize], false);
+
+        if data.len() < MIN_FUNC_SZ.into() {
+            continue;
+        }
+
         let hash = FuzzyHash::new(&data);
 
         let fn_name = match f.name.clone() {

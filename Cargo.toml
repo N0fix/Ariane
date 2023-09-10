@@ -5,7 +5,7 @@ edition = "2021"
 license-file = "LICENSE"
 repository = "https://github.com/N0fix/ariane"
 authors = ["Nofix"]
-keywords = ["strip", "ctf", "symbol", "rust"]
+keywords = ["strip", "reverse-engineering", "symbol", "rust"]
 readme = "README.md"
 description = "Rust tool to recover symbols from release compiled executables"
 

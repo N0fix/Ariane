@@ -1,207 +1,64 @@
-use ariane::sig::sig_generation::{hash_functions, FuzzyFunc};
-use clap::Parser;
-use fuzzyhash::FuzzyHash;
-use goblin::pe::section_table::SectionTable;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::error::Error;
-use std::fs::File;
-use std::io::{BufReader, Write};
-use std::path::{Path, PathBuf};
-// mod compilation;
-// mod functions_utils;
-// mod info_gathering;
-// mod sig;
-// mod utils;
+use clap::{Parser, Subcommand};
+use std::path::PathBuf;
+mod commands;
 
-use ariane::functions_utils::search::get_functions;
-use ariane::functions_utils::search::{rva_to_pa, Function};
-use ariane::info_gathering::compiler::{
-    finc_compiler_version, find_tag_from_hash, get_latest_rust_version,
-};
-use ariane::info_gathering::krate::{find_deps, Krate};
-use ariane::sig::comparaison::compare;
-use ariane::sig::comparaison::Symbol;
-use ariane::{handle, install_toolchain};
+use crate::commands::download::download_subcommand;
+use crate::commands::info::info_subcommand;
+use crate::commands::recover::recover_subcommand;
 
-#[derive(Serialize, Deserialize, Default)]
-struct RecoveredSymbols {
-    // dll_name: String,
-    symbols: Vec<Symbol>,
-}
-
-#[derive(Serialize, Deserialize)]
-/// {
-///   "functions": [
-///     {
-///       "name": "sub_140001000",
-///       "start": 5368713216,
-///       "end": 5368713350
-///     },
-///     [... more entries ...]
-///   ]
-/// }
-struct InutFunction {
-    name: String,
-    start: u32,
-    end: u32,
-}
-
-#[derive(Serialize, Deserialize, Default)]
-struct InputFunctions {
-    functions: Vec<InutFunction>,
-}
-
-impl InputFunctions {
-    pub fn to_functions(&self, file_content: &[u8]) -> Vec<Function> {
-        let mut result = vec![];
-        let parsed_pe = goblin::pe::PE::parse(file_content).unwrap();
-        let mut section_map = HashMap::<u16, SectionTable>::new();
-        for (i, section) in parsed_pe.sections.iter().enumerate() {
-            section_map.insert(i as u16 + 1, section.clone());
-        }
-
-        for func in &self.functions {
-            if let Some(start_pa) = rva_to_pa(&parsed_pe, func.start) {
-                if let Some(end_pa) = rva_to_pa(&parsed_pe, func.end) {
-                    result.push(Function {
-                        start_rva: func.start,
-                        end_rva: func.end,
-                        start_pa: start_pa,
-                        end_pa: end_pa,
-                        name: Some(func.name.to_owned()),
-                    })
-                }
-            }
-        }
-
-        result
-    }
+#[derive(Subcommand, Debug)]
+enum SubCommand {
+    /// Print recognized dependencies
+    Info(InfoArgs),
+    /// Download and extract recognized dependencies to target directory
+    Download(DownloadArgs),
+    /// Try to recover symbols
+    Recover(RecoverArgs),
 }
 
 #[derive(Parser, Debug)]
 #[clap(version)]
-struct Arguments {
-    #[clap(required = true)]
-    file: String,
-    /// Path of a file containing a list of your target binary functions. See README.md.
-    #[clap(short, long, required = false)]
-    input_functions_file: Option<PathBuf>,
-    #[clap(required = true)]
-    output: String,
+pub struct Arguments {
+    #[clap(subcommand)]
+    cmd: SubCommand,
 }
 
-fn parse_input_fn_to_functions(filepath: &Path) -> Result<InputFunctions, Box<dyn Error>> {
-    let file = File::open(filepath)?;
-    let reader = BufReader::new(file);
+#[derive(Parser, Debug)]
+pub struct InfoArgs {
+    pub target: String,
+}
 
-    // Read the JSON contents of the file as an instance of `User`.
-    let u: InputFunctions = serde_json::from_reader(reader)?;
+#[derive(Parser, Debug)]
+pub struct DownloadArgs {
+    pub target: String,
+    pub dest_directory: PathBuf,
+}
 
-    Ok(u)
+#[derive(Parser, Debug)]
+pub struct RecoverArgs {
+    pub target: String,
+    #[clap(short, long, required = false)]
+    input_functions_file: Option<PathBuf>,
+    // #[clap(required = false)]
+    // pub dest_directory: Option<PathBuf>,
+    #[clap(required = true)]
+    result_file: String,
 }
 
 fn main() -> Result<(), std::io::Error> {
+    env_logger::init();
+
     let args = Arguments::parse();
-    let mut functions = vec![];
-    let bytes = match std::fs::read(&args.file) {
-        Ok(b) => b,
-        Err(e) => {
-            writeln!(std::io::stderr(), "Could not read file : {}", e)?;
-            return Err(e);
+    println!("{args:#?}");
+    match args.cmd {
+        SubCommand::Info(subcommand_args) => {
+            return info_subcommand(&subcommand_args);
         }
-    };
-
-    if let Some(input_fn_file) = args.input_functions_file {
-        let input_functions = parse_input_fn_to_functions(input_fn_file.as_path())
-            .expect("Invalid file or malformed content");
-        functions = input_functions.to_functions(bytes.as_ref());
-    } else {
-        let file_path: PathBuf = PathBuf::from(args.file);
-        functions = get_functions(file_path.as_path(), None);
-    }
-
-    println!("{} functions", functions.len());
-
-    let compiler_commit = match finc_compiler_version(&bytes) {
-        Some(version) => version,
-        None => {
-            println!("No rustc compiler version found in your target");
-            return Ok(());
+        SubCommand::Download(subcommand_args) => {
+            return download_subcommand(&subcommand_args);
         }
-    };
-
-    println!("Compiler commit {:#}", compiler_commit);
-
-    let compiler_tag = match find_tag_from_hash(&compiler_commit.as_str()) {
-        Some(tag) => {
-            println!("Compiler tag {:#}. This version will be used for compilation. If results aren't accurate enough, please download and compile the exact compiler version using the commit hash given above.", tag);
-
-            tag.to_string()
-        }
-        // git ls-remote https://github.com/rust-lang/rust | sort | grep tag | grep '/1.7'
-        None => get_latest_rust_version(),
-    };
-    install_toolchain(compiler_tag.as_str());
-
-    println!("Finding deps");
-    let mut compiled_dll_paths = vec![];
-    let found_crates: Vec<Krate> = find_deps(&bytes);
-    
-    for cr in found_crates {
-        println!("{:#}", cr);
-        if let Some(path) = handle(cr, compiler_tag.as_str()) {
-            compiled_dll_paths.push(path);
-        };
-    }
-
-    println!("Hash target functions");
-    let hashed_functions_target = hash_functions(&bytes, &functions);
-
-    let mut result: Vec<RecoveredSymbols> = vec![];
-    let mut hash_dll_functions = HashMap::<String, (String, String)>::new();
-    for dll in &compiled_dll_paths {
-        println!("Analysing {}", dll);
-        let file_path: PathBuf = PathBuf::from(dll);
-        let file_path_string = file_path.clone().to_str().unwrap().to_string();
-        let mut pdb_path: PathBuf = PathBuf::from(dll);
-        pdb_path.set_extension("pdb");
-        let dll_bytes = std::fs::read(file_path).unwrap();
-        let dll_functions = get_functions(Path::new(dll), Some(pdb_path.as_path()));
-
-        println!("Hash lib functions");
-        let dll_hashes = hash_functions(&dll_bytes, &dll_functions);
-
-        for hash in &dll_hashes {
-            if let Some(fn_name) = hash.name.as_ref() {
-                if !hash_dll_functions.contains_key(fn_name) {
-                    hash_dll_functions.insert(
-                        fn_name.to_string(),
-                        (
-                            file_path_string.clone(),
-                            hash.hash.hash.to_string(),
-                        ),
-                    );
-                }
-            }
+        SubCommand::Recover(subcommand_args) => {
+            return recover_subcommand(&subcommand_args);
         }
     }
-
-    let syms = compare(&hashed_functions_target, &hash_dll_functions);
-
-    result.push(RecoveredSymbols {
-        // dll_name: dll.clone(),
-        symbols: syms,
-    });
-
-    let mut f = std::fs::OpenOptions::new()
-        .create(true)
-        .write(true)
-        .truncate(true)
-        .open(args.output)
-        .expect("File could not be open for writing");
-    let j: String = serde_json::to_string(&result).unwrap();
-    f.write(j.as_bytes());
-
-    Ok(())
 }

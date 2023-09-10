@@ -5,6 +5,12 @@ use iced_x86::{Decoder, DecoderOptions, Formatter, Instruction, MasmFormatter, M
 
 use crate::{functions_utils::search::Function, utils::export::find_fn_name};
 
+pub trait HashFn<T> {
+    fn hash(bytes: &Vec<u8>) -> T;
+    fn compare_hash(&self, with: &impl HashFn<T>) -> i32;
+    fn get_hash(&self) -> &T;
+}
+
 pub struct Hash {
     // tlsh
     // pub hash: tlsh2::Tlsh128_1,
@@ -12,7 +18,7 @@ pub struct Hash {
 }
 
 pub struct FuzzyFunc {
-    pub pa: u32,
+    // pub pa: u32,
     pub rva: u32,
     pub hash: Hash,
     pub name: Option<String>,
@@ -21,12 +27,26 @@ pub struct FuzzyFunc {
 impl Display for FuzzyFunc {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(_name) = &self.name {
-            write!(f, "{:08x} {:#} {:?}", self.pa, self.hash.hash, self.name)?;
+            write!(f, "{:#} {:?}", self.hash.hash, self.name)?;
         } else {
-            write!(f, "{:08x} {:#} ", self.pa, self.hash.hash)?;
+            write!(f, "{:#} ", self.hash.hash)?;
         }
 
         Ok(())
+    }
+}
+
+impl HashFn<FuzzyHash> for FuzzyFunc {
+    fn hash(bytes: &Vec<u8>) -> FuzzyHash {
+        FuzzyHash::new(&bytes)
+    }
+
+    fn compare_hash(&self, with: &impl HashFn<FuzzyHash>) -> i32 {
+        self.hash.hash.compare_to(with.get_hash()).unwrap() as i64 as i32
+    }
+
+    fn get_hash(&self) -> &FuzzyHash {
+        &self.hash.hash
     }
 }
 
@@ -38,7 +58,7 @@ const MIN_FUNC_SZ: u8 = 20;
 /// lea rax, off_14006580
 /// ```
 /// This function also stop hashing as soon as it encounters two consecutive `ud2` or `int3`.
-fn hash_single_func(bytes: &[u8], verbose: bool) -> Vec<u8> {
+pub fn hash_single_func(bytes: &[u8], verbose: bool) -> Vec<u8> {
     let mut result = vec![];
     // println!("HASHING A SINGLE FN");
     let mut decoder = Decoder::new(64, bytes, DecoderOptions::NONE);
@@ -53,10 +73,18 @@ fn hash_single_func(bytes: &[u8], verbose: bool) -> Vec<u8> {
         decoder.decode_out(&mut instruction);
         output.clear();
         formatter.format(&instruction, &mut output);
-        if instruction.mnemonic() == Mnemonic::Call
-            || (instruction.op1_kind() == OpKind::Memory
-                && instruction.ip_rel_memory_address() != 0)
-        {
+        match instruction.mnemonic() {
+            Mnemonic::Call => {
+                result.push(0xe8);
+                continue;
+            }
+            Mnemonic::Jmp => {
+                result.push(0xe9);
+                continue;
+            }
+            _ => {}
+        };
+        if instruction.op1_kind() == OpKind::Memory && instruction.ip_rel_memory_address() != 0 {
             continue;
         }
 
@@ -94,16 +122,16 @@ fn hash_single_func(bytes: &[u8], verbose: bool) -> Vec<u8> {
     result
 }
 
-pub fn hash_functions(file_bytes: &[u8], functions: &Vec<Function>) -> Vec<FuzzyFunc> {
+pub fn hash_functions(functions: &Vec<Function>) -> Vec<FuzzyFunc> {
     let mut result = vec![];
 
     for f in functions {
-        if f.end_pa < f.start_pa || f.end_pa - f.start_pa < MIN_FUNC_SZ.into() {
-            continue;
-        }
+        // if f.end_pa < f.start_pa || f.end_pa - f.start_pa < MIN_FUNC_SZ.into() {
+        //     continue;
+        // }
 
         // end_pa MUST be next exported func if it has one
-        let data = hash_single_func(&file_bytes[f.start_pa as usize..f.end_pa as usize], false);
+        let data = hash_single_func(f.data, false);
 
         if data.len() < MIN_FUNC_SZ.into() {
             continue;
@@ -111,15 +139,16 @@ pub fn hash_functions(file_bytes: &[u8], functions: &Vec<Function>) -> Vec<Fuzzy
 
         let hash = FuzzyHash::new(&data);
 
-        let fn_name = match f.name.clone() {
-            Some(name) => Some(name),
-            None => find_fn_name(f.start_pa, file_bytes),
-        };
+        // let fn_name = match f.name.clone() {
+        //     Some(name) => Some(name),
+        //     None => find_fn_name(f.start_pa, file_bytes),
+        // };
         result.push(FuzzyFunc {
-            pa: f.start_pa,
-            rva: f.start_rva,
+            // pa: f.start_pa,
+            rva: f.rva,
+            // data: f.data,
             hash: Hash { hash: hash },
-            name: fn_name,
+            name: f.name.clone(),
         });
     }
 

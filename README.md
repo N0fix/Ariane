@@ -14,6 +14,7 @@ Ariane is a tool that attempts to identify functions in Rust PE executables when
 
 **It is inspired by [Cerberus](https://github.com/h311d1n3r/Cerberus/tree/main) and implement similar principles, but for PE files.**
 
+**It is windows only.**
 
 ## Installation
 
@@ -31,6 +32,23 @@ Please make sure you have to following dependencies installed :
 - [cargo](https://www.rust-lang.org/tools/install) (comes with rust default installation)
 
 ## Usage
+
+Multiple commands are available : 
+```
+Usage: ariane.exe <COMMAND>
+
+Commands:
+  info      Print recognized dependencies
+  download  Download and extract recognized dependencies to target directory
+  recover   Try to recover symbols
+  help      Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help     Print help
+  -V, --version  Print version
+```
+
+### Symbol recovery
 
 First, you need to provide a list of functions from your target. Scripts to extract them from IDA and convert them to the correct format are available under `tools/IDA_extract_functions`.
 
@@ -52,7 +70,7 @@ This list of functions should be in JSON format and have the following structure
 Next, pass this JSON file as an argument along with your target and specify an output file.
 
 ```
-ariane.exe -i functions_list.json no_symbols_target.exe resolved_symbols.json
+$env:RUST_LOG = "info" ; ariane.exe -i functions_list.json no_symbols_target.exe resolved_symbols.json
 ```
 
 The output file will be in JSON format and will contain resolved symbols, along with their physical addresses (PA) and relative virtual addresses (RVA). You can find a script under tools/output_to_idc.py that can generate an IDA IDC script. This IDC script will rename all resolved symbols to aid in your analysis.
@@ -62,7 +80,6 @@ The output file will be in JSON format and will contain resolved symbols, along 
 - All generic functions once compiled result in a custom output this tool cannot guess and thus, wont recognize. This is a lot of functions, which might explains the poor results of this approach in some cases.
 - Not all dependencies may be detected. Currently, the focus is on hunting basic artifacts, aiming to capture the low-hanging fruits.
 - Efforts are made to recognize, compile, and hash non-default features that might be used as your target. It is possible that some features won't get detected, compiled, and hashed, thus resulting in a failure to recognize certain functions.
-- Compiling no_std crates as DLL files on Windows is not a straightforward process. Best effort is made to compile these crates, but no guarantees are provided. An other approach would be to work on .lib files, which does not requiere std.
 - Small functions might be identified as multiple different functions, and you will need to choose the most suitable one from the JSON output.
 
 ## FAQ

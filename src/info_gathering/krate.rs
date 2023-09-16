@@ -46,6 +46,15 @@ impl Krate {
         }
     }
 
+    pub fn from_name(name: &str) -> Result<Krate, KrateError> {
+        let metadata = match Krate::get_metadata_from_crates_api_from_name(name) {
+            Ok(m) => m,
+            Err(e) => return Err(KrateError::NoMetadataError(e)),
+        };
+        let version = metadata.versions.last().unwrap();
+        Ok(Krate::new(name, Version::parse(&version.num).unwrap()))
+    }
+
     pub fn new_with_remote_info(name: &str, version: Version) -> Krate {
         let mut k = Krate::new(name, version);
 
@@ -99,14 +108,18 @@ impl Krate {
         Ok(tarball_path)
     }
 
-    fn get_metadata_from_crates_api(&self) -> Result<CrateResponse, crates_io_api::Error> {
+    fn get_metadata_from_crates_api_from_name(name: &str) -> Result<CrateResponse, crates_io_api::Error> {
         let client = SyncClient::new(
             "Ariane (https://github.com/N0fix/Ariane)",
             std::time::Duration::from_millis(1_0000),
         )
         .unwrap();
 
-        client.get_crate(&self.name.as_str())
+        client.get_crate(name)
+    }
+
+    fn get_metadata_from_crates_api(&self) -> Result<CrateResponse, crates_io_api::Error> {
+        Krate::get_metadata_from_crates_api_from_name(&self.name.as_str())
     }
 
     fn filter_features(&mut self, version_meta: &crates_io_api::Version) {

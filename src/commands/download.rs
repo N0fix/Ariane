@@ -1,11 +1,11 @@
+use crate::DownloadArgs;
 use ariane::info_gathering::{
     compiler::{CommitHash, RustcInformation},
     krate::Dependencies,
 };
 use flate2::read::GzDecoder;
-use tar::Archive;
 use log::{debug, error, info, log_enabled, Level};
-use crate::DownloadArgs;
+use tar::Archive;
 
 pub fn download_subcommand(args: &DownloadArgs) -> Result<(), std::io::Error> {
     let bytes = std::fs::read(&args.target)?;
@@ -33,7 +33,7 @@ pub fn download_subcommand(args: &DownloadArgs) -> Result<(), std::io::Error> {
             Err(e) => {
                 error!("Could not download crate");
                 continue;
-            },
+            }
         };
         let mut archive = Archive::new(GzDecoder::new(std::fs::File::open(&targz_path).unwrap()));
         archive.unpack(&args.dest_directory)?;

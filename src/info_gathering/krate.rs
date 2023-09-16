@@ -4,8 +4,9 @@ use regex::bytes::Regex;
 use semver::Version;
 use std::{
     collections::{HashMap, HashSet},
+    error::Error,
     fmt::Display,
-    path::{Path, PathBuf}, error::Error,
+    path::{Path, PathBuf},
 };
 
 #[derive(Clone)]
@@ -15,7 +16,7 @@ pub struct Krate {
     download_url: String,
     features: Vec<String>,
     is_accurate: bool,
-    metadata: Option<CrateResponse>
+    metadata: Option<CrateResponse>,
 }
 
 impl Display for Krate {
@@ -29,7 +30,8 @@ pub enum KrateError {
     CursorError(std::io::Error),
     DownloadError(reqwest::Error),
     FileCreationError(std::io::Error),
-    NoMetadataError(crates_io_api::Error)
+    NoMetadataError(crates_io_api::Error),
+    NonExistantVersion,
 }
 
 impl Krate {
@@ -40,7 +42,7 @@ impl Krate {
             download_url: String::new(),
             features: vec![],
             is_accurate: false,
-            metadata: None
+            metadata: None,
         }
     }
 
@@ -126,11 +128,14 @@ impl Krate {
 
         self.metadata = Some(metadata.clone());
 
-        let v = metadata
+        let v = match metadata
             .versions
             .iter()
             .find(|v| v.num == self.version.to_string())
-            .unwrap();
+        {
+            Some(v) => v,
+            None => return Err(KrateError::NonExistantVersion),
+        };
 
         self.filter_features(&v);
         self.download_url = format!("https://crates.io{}", v.dl_path);
@@ -255,7 +260,7 @@ impl Dependencies {
                     download_url: String::new(),
                     features: features.clone(),
                     is_accurate: false,
-                    metadata: None
+                    metadata: None,
                 })
                 .collect(),
         }

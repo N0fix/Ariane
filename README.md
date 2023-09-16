@@ -3,6 +3,7 @@
 
 
 Ariane is a tool that attempts to identify functions in Rust PE executables when no debug information is available.
+It focuses on having minimal dependencies on other tools.
 
 ![](./fn_id.jpg)
 

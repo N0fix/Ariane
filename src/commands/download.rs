@@ -4,7 +4,7 @@ use ariane::info_gathering::{
 };
 use flate2::read::GzDecoder;
 use tar::Archive;
-
+use log::{debug, error, info, log_enabled, Level};
 use crate::DownloadArgs;
 
 pub fn download_subcommand(args: &DownloadArgs) -> Result<(), std::io::Error> {
@@ -28,7 +28,13 @@ pub fn download_subcommand(args: &DownloadArgs) -> Result<(), std::io::Error> {
     let mut deps = Dependencies::from_buffer(&bytes);
     for dep in deps.get_dependencies_mut() {
         println!("Downloading {:#}", dep);
-        let targz_path = dep.download(&args.dest_directory)?;
+        let targz_path = match dep.download(&args.dest_directory) {
+            Ok(path) => path,
+            Err(e) => {
+                error!("Could not download crate");
+                continue;
+            },
+        };
         let mut archive = Archive::new(GzDecoder::new(std::fs::File::open(&targz_path).unwrap()));
         archive.unpack(&args.dest_directory)?;
         println!(

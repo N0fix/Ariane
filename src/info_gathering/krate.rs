@@ -5,7 +5,7 @@ use semver::Version;
 use std::{
     collections::{HashMap, HashSet},
     fmt::Display,
-    path::{Path, PathBuf},
+    path::{Path, PathBuf}, error::Error,
 };
 
 #[derive(Clone)]
@@ -15,12 +15,21 @@ pub struct Krate {
     download_url: String,
     features: Vec<String>,
     is_accurate: bool,
+    metadata: Option<CrateResponse>
 }
 
 impl Display for Krate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}-{}", self.name, self.version)
     }
+}
+
+#[derive(Debug)]
+pub enum KrateError {
+    CursorError(std::io::Error),
+    DownloadError(reqwest::Error),
+    FileCreationError(std::io::Error),
+    NoMetadataError(crates_io_api::Error)
 }
 
 impl Krate {
@@ -31,6 +40,7 @@ impl Krate {
             download_url: String::new(),
             features: vec![],
             is_accurate: false,
+            metadata: None
         }
     }
 
@@ -42,21 +52,48 @@ impl Krate {
         k
     }
 
-    pub fn download(&mut self, dest_dir: &Path) -> Result<PathBuf, std::io::Error> {
+    /// Retrives krate metadata from crates.io.
+    /// ⚠️ This makes a blocking request to crates.io/api ⚠️
+    pub fn get_krate_meta(&mut self) -> Option<CrateResponse> {
+        if !self.is_accurate {
+            self.fill_information_from_crates_api();
+        }
+
+        self.metadata.clone()
+    }
+
+    pub fn download(&mut self, dest_dir: &Path) -> Result<PathBuf, KrateError> {
         debug!(
             "Downloading {} to {:?}",
             self.name,
             &dest_dir.to_string_lossy()
         );
-        std::fs::create_dir_all(&dest_dir)?;
+        if let Err(e) = std::fs::create_dir_all(&dest_dir) {
+            return Err(KrateError::FileCreationError(e));
+        };
 
         let reqwest_client = reqwest::blocking::Client::new();
-        let response = reqwest_client.get(self.get_download_url()).send().unwrap();
-        let tarball_path = dest_dir.clone().join(format!("{:#}.tar.gz", self.name));
-        let mut tarball_file = std::fs::File::create(&tarball_path)?;
-        let mut content = std::io::Cursor::new(response.bytes().unwrap());
 
-        std::io::copy(&mut content, &mut tarball_file)?;
+        let response = match reqwest_client.get(self.get_download_url()?).send() {
+            Ok(response) => response,
+            Err(e) => return Err(KrateError::DownloadError(e)),
+        };
+
+        let tarball_path = dest_dir.clone().join(format!("{:#}.tar.gz", self.name));
+        let mut tarball_file = match std::fs::File::create(&tarball_path) {
+            Ok(tarball) => tarball,
+            Err(e) => return Err(KrateError::FileCreationError(e)),
+        };
+        let response_content = match response.bytes() {
+            Ok(b) => b,
+            Err(e) => return Err(KrateError::DownloadError(e)),
+        };
+        let mut content = std::io::Cursor::new(response_content);
+
+        if let Err(e) = std::io::copy(&mut content, &mut tarball_file) {
+            return Err(KrateError::FileCreationError(e));
+        };
+
         Ok(tarball_path)
     }
 
@@ -77,12 +114,18 @@ impl Krate {
     }
 
     /// ⚠️ This makes a blocking request to crates.io/api ⚠️
-    fn fill_information_from_crates_api(&mut self) -> &Krate {
+    fn fill_information_from_crates_api(&mut self) -> Result<&Krate, KrateError> {
         if self.is_accurate {
-            return self;
+            return Ok(self);
         }
 
-        let metadata = self.get_metadata_from_crates_api().unwrap();
+        let metadata = match self.get_metadata_from_crates_api() {
+            Ok(meta) => meta,
+            Err(e) => return Err(KrateError::NoMetadataError(e)),
+        };
+
+        self.metadata = Some(metadata.clone());
+
         let v = metadata
             .versions
             .iter()
@@ -94,7 +137,7 @@ impl Krate {
 
         self.is_accurate = true;
 
-        self
+        Ok(self)
     }
 
     /// Gets a list of potential features used. This is a list with numerus potential false positives.
@@ -106,22 +149,22 @@ impl Krate {
 
     /// Retrieves download url.
     /// ⚠️ This makes a blocking request to crates.io/api ⚠️
-    pub fn get_download_url(&mut self) -> &str {
+    pub fn get_download_url(&mut self) -> Result<&str, KrateError> {
         if !self.is_accurate {
-            self.fill_information_from_crates_api();
+            self.fill_information_from_crates_api()?;
         }
 
-        &self.download_url
+        Ok(&self.download_url)
     }
 
     /// Retrives potential features used.
     /// ⚠️ This makes a blocking request to crates.io/api ⚠️
-    pub fn get_features(&mut self) -> &Vec<String> {
+    pub fn get_features(&mut self) -> Result<&Vec<String>, KrateError> {
         if !self.is_accurate {
-            self.fill_information_from_crates_api();
+            self.fill_information_from_crates_api()?;
         }
 
-        return &self.features;
+        Ok(&self.features)
     }
 
     pub fn as_string(&self) -> String {
@@ -212,6 +255,7 @@ impl Dependencies {
                     download_url: String::new(),
                     features: features.clone(),
                     is_accurate: false,
+                    metadata: None
                 })
                 .collect(),
         }

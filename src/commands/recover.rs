@@ -120,12 +120,15 @@ fn download_extract_compile(
     let krate_full_name = format!("{}-{:#}", krate.name.clone(), krate.version);
 
     let extracted_path = dest_dir.join(PathBuf::from(&krate_full_name));
-    let targz_path = krate.download(&dest_dir).unwrap();
+    let targz_path = match krate.download(&dest_dir) {
+        Ok(path) => path,
+        Err(_) => return None,
+    };
     extract_targz(targz_path.as_path(), &dest_dir.join(dest_dir));
     compile::compile(
         &extracted_path.join("Cargo.toml"),
         &compiler_version,
-        krate.get_features(),
+        krate.get_features().unwrap(),
         compile_type,
     );
 

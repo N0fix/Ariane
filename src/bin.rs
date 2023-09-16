@@ -49,7 +49,7 @@ fn main() -> Result<(), std::io::Error> {
     env_logger::init();
 
     let args = Arguments::parse();
-    println!("{args:#?}");
+    // println!("{args:#?}");
     match args.cmd {
         SubCommand::Info(subcommand_args) => {
             return info_subcommand(&subcommand_args);

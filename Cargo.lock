@@ -76,7 +76,7 @@ dependencies = [
 
 [[package]]
 name = "ariane"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "clap",
  "crates_io_api",

@@ -1,3 +1,6 @@
+**⚠ This project is archived. I now develop a similar tool in python that you can find [here](https://github.com/N0fix/rustbininfo). ⚠**
+
+
 [![Build](https://github.com/N0fix/Ariane/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/N0fix/Ariane/actions/workflows/build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
